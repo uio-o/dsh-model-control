@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-control",
   "description": "Unified model control for DeepSeek Harness: model picker (search/favorites/fold/chips/facts) + model management (channels, per-model capabilities) + reasoning-effort advisory (knowledge base, per-model defaults), in one seat and one settings page.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/uio-o/dsh-model-control.git"
