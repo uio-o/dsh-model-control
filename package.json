@@ -24,6 +24,9 @@
     "README.md",
     "LICENSE"
   ],
+  "scripts": {
+    "test": "node scripts/check-client.mjs && node scripts/test-engines.mjs && node scripts/test-store.mjs && node scripts/test-selection.mjs && node scripts/test-declaration.mjs && node scripts/test-profile-patch.mjs && node scripts/test-host.mjs"
+  },
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -47,8 +50,12 @@
   },
   "peerDependencies": {
     "react": "^18.2.0",
-    "@deepseek-ai/cordis": "*",
-    "@deepseek-ai/dsh-client-runtime": "*",
-    "@deepseek-ai/dsh-client-ui-slots": "*"
+    "@deepseek-ai/cordis": ">=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.2.0-0",
+    "@deepseek-ai/dsh-client-runtime": ">=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.2.0-0",
+    "@deepseek-ai/dsh-client-ui-slots": ">=0.0.1-rc.1 <0.1.0 || >=0.1.0-rc.1 <0.2.0-0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
