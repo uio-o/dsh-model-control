@@ -1,0 +1,22 @@
+# Inserts dsh-model-control into a profile's layer stack.
+- insert:
+    - id: dsh-model-control
+      name: dsh-model-control
+
+# Take over the official 「模型」 settings section.
+#
+# This page owns model management: it lists the built-in channels, creates and
+# edits channels, chooses which of an endpoint's models exist in this app, and
+# declares reasoning-effort ladders. Leaving the shipped page visible beside it
+# would give two places to do the same job and two sources of truth.
+#
+# The disable lives in THIS bundle layer on purpose: it is applied only while
+# the plugin is installed. Disabling or removing dsh-model-control drops this
+# row with it and the official 模型 page comes straight back — so the takeover
+# can never leave the user with no way to manage models.
+#
+# The page itself carries the switch for this: writing `disabled: false` into
+# the profile layer (applied after every bundle layer) shows the official page
+# again without touching the plugin.
+- id: ui-settings-models
+  disabled: true
