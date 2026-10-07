@@ -1,13 +1,15 @@
 # dsh-model-control
 
-DeepSeek Harness（DSH）的**统一模型控件**插件：把「模型选择器」和「模型管理 + 思考档位」
-合到一个座位、一个设置页里。
+面向 dsh Web GUI 的**统一模型控件**：把「模型选择器」「模型管理」「思考档位」三件事
+收进一个座位、一个设置页。
 
-整合了两个插件的能力（fork 自 [dsh-model-picker](https://github.com/ttmouse/dsh-model-picker)，MIT）：
+它整合并取代两个插件的职责——[dsh-model-picker](https://github.com/ttmouse/dsh-model-picker)
+（接管输入框的模型座位 `conversation.input.model`）与
+[dsh-better-reasoning-effort](https://github.com/HaoyueQin/dsh-better-reasoning-effort)
+（思考档位建议与模型能力配置）。
 
-- **模型选择器**（输入栏座位）：搜索、收藏、供应商折叠、上下文胶囊、档位控件
-- **模型管理**：内置渠道接管、自建渠道增删改、模型能力（图片输入 / 上下文 / 最大输出）
-- **思考档位**：65 条知识库建议、每模型默认档、档位设置页
+> **装前必读**：本插件与上述两个**不能同时启用**——它们抢同一个单占用座位。详见下方
+> [与旧插件的冲突](#与旧插件的冲突)。
 
 ## 安装
 
@@ -29,70 +31,118 @@ DeepSeek Harness（DSH）的**统一模型控件**插件：把「模型选择器
 }
 ```
 
-然后**重启应用**（bundles 是启动时读入的）。
+然后**重启应用**——bundles 是启动时读入的，只刷新页面不够。
 
 开发时也可以本地 link：`"dsh-model-control": "link:D:/path/to/model-control"`。
 
-## ⚠️ 与旧插件冲突，装前必读
+## 与旧插件的冲突
 
-本插件**整合并取代**下面两个，**不要同时启用**——它们会抢同一个「选择器座位」
-（单座位 slot，一个占上另一个就失效，表现为选择器消失或报重复 id）：
+座位 `conversation.input.model` 是**单占用**槽位，注册时崩溃会让输入框完全失去模型控件。
+三个插件都往那里注册，所以：
 
-- [`dsh-model-picker`](https://github.com/ttmouse/dsh-model-picker)
-- `dsh-better-reasoning-effort`
+| 插件 | 处置 |
+|---|---|
+| `dsh-model-picker` | 从 `dsh.profile.bundles` **移除** |
+| `dsh-better-reasoning-effort` | 从 `dsh.profile.bundles` **移除** |
+| `dsh-model-control` | 保留 |
 
-迁移做法：把它们从 `dsh.profile.bundles` 里**移除**（依赖声明可以留着），只保留
-`dsh-model-control`。
+依赖声明可以留着（不碍事），关键是 `bundles` 数组里只能有一个。表现症状：选择器消失、
+或报重复 id。
 
 ## 接管官方「模型」页
 
 插件自带 bundle 层补丁，安装后会**隐藏官方「模型」设置页**，由本插件的「模型管理」接管，
-避免两个入口做同一件事。
+免得两个入口做同一件事、两个真相来源。
 
-这个接管是**可逆**的：禁用/卸载本插件时那行补丁随之消失，官方页立刻回来；也可以在插件页里
-关掉「接管官方「模型」页」开关（写进 profile 层，需重启生效）临时切回官方页。
+接管是**可逆**的，而且是刻意这样设计的：那行 `disabled: true` 写在**本插件的 bundle 层**
+里，所以禁用或卸载插件时它随之消失，官方页立刻回来——**不可能出现「两页都没了」的死局**。
+也可以在插件页里关掉「接管官方「模型」页」开关（写进 profile 层，该层在 bundle 层之后
+应用，故能覆盖），重启生效。
 
-## 要求
+## 设计
 
-- DSH NEXT / DeepSeek Harness，Node ≥ 22
-- 客户端半是 web 平台插件（`dsh.client.platform: "web"`）
+**双区触发按钮**把「选模型」和「选推理档位」拆成两个独立弹窗：
 
-## 测试
+| 区域 | 点击 | 弹窗内容 |
+|------|------|----------|
+| **左侧**（模型名） | 打开模型选择器 | 顶部搜索框（自动聚焦）、左栏供应商、右栏模型列表 |
+| **右侧**（档位） | 打开档位选择器 | 推理档位 + 推荐默认档 |
 
-```bash
-node scripts/check-client.mjs       # 客户端解析 + 静态防线（setter / i18n）
-node scripts/test-host.mjs          # 宿主 17 条路由
-node scripts/test-engines.mjs       # 档位建议引擎
-node scripts/test-store.mjs         # 持久化
-node scripts/test-selection.mjs     # 模型选择写入
-node scripts/test-declaration.mjs   # 档位声明计划
-node scripts/test-profile-patch.mjs # 接管开关的 patch 层编辑
+档位弹窗是**对话内唯一的档位入口**——官方页里也能改，但那是「默认值」，这里改的是
+当前会话。
+
+### 设置页：两层弹窗
+
+设置页本身**只放渠道列表**（一行一个渠道：显示名 + 自定义/内置徽标 + 模型数 + 「编辑」）。
+点「编辑」开**第一层弹窗**（渠道配置 + 模型列表），模型行右侧的「设置」再开**第二层弹窗**
+（那一个模型的档位与能力）。两层都能点遮罩关闭、右上角 × 关闭、`Esc` 先关上层再关下层。
+
+**为什么不用两栏主从**：设置窗本身很窄，左栏一挤就只剩 200px 装不下渠道名，右侧一展开
+编辑器又把整页撑得很高，左右高度差显得割裂。弹窗分层没有这个问题。
+
+**弹窗实现说明**：插件沙箱只给到 `ctx / React / host / styles / console`（**没有**
+`react-dom`），所以用不了 `createPortal`。改用 `position:fixed` 覆盖视口，配合两层
+`z-index`（40 / 60）堆叠。`document.addEventListener` 可用，`Esc` 就挂在它上面。
+
+### 打开弹窗不拉模型
+
+打开渠道弹窗时，列表直接显示这个渠道**已经持有的**模型——自建渠道读 `llm-pi-ai` 文档，
+内置渠道读适配器列表，**纯本地读取，不发网络请求**。看一眼模型列表不该依赖端点在线。
+
+「拉取可用模型」是**你主动点**才发生的动作，结果只进下方的**候选面板**（虚线框，可随时
+收掉），勾选后「保存选择」才写进渠道。候选面板**不会顶掉**已有列表——这是两件事：
+
+> 列表 = 渠道持有的；拉取 = 往候选里添
+
+### 创建渠道必须先有模型
+
+**这是上游硬约束，不是我们的选择**。pi-ai 里 `entries.length === 0` 会直接：
+
 ```
+llm-pi-ai: provider "x" resolves no models; the installed catalog does not describe
+this route, so its models must be listed in configuration
+```
+
+`entries` 是你配的 models；为空则回退到**内置 catalog**，而 catalog 不认识自定义路由，
+于是也为空 → **整份配置被拒绝**。所以「先建空壳渠道、之后再拉模型」在上游走不通。
+
+创建因此是**向导式**的，创建放最后一步：
+
+1. **测试连接**（`POST /probe`，草稿态，**不写任何东西**）——用你填的地址/协议/密钥实际
+   调一次。端点能连但不返回模型也是**明确的答案**，与「连不上」分开报。
+2. **拉取模型**（`POST /available {draft}`，草稿态，不写任何东西）——为**还不存在**的渠道
+   拿候选列表。
+3. **勾选**
+4. **创建**（`POST /provider {action:'add', models:[…]}`）——渠道与它的模型**一次写入**。
+   空列表会被宿主以 `code: 'MODELS_REQUIRED'` 拒绝，并在界面上说明原因，而不是让 pi-ai
+   抛一句看不懂的 schema 错误。
 
 ## 功能
 
-### 继承自 dsh-model-picker（选择器底座）
+### 选择器（继承自 dsh-model-picker）
 
-- 双区触发按钮：左区选模型、右区选思考档位（**唯一的对话内档位入口**）
+- 双区触发按钮：左区选模型、右区选思考档位
 - 顶部搜索框，供应商与模型两栏同时过滤
 - 供应商折叠（`(modlens vision)` 能力后缀路由折叠进基供应商，只影响展示）
 - 收藏组置顶（按 `provider/model` 路由收藏，localStorage 持久化）
 - 供应商字符徽标 + 固定底色
 - 上下文长度胶囊与原生/桥接视觉图标
+- 键盘全程可操作（焦点留在搜索框，`↑↓` / `PageUp/Down` / `Home/End` / `Enter`）
 
-### 新增：档位建议引擎
+### 档位建议引擎
 
-- 内置知识库（DeepSeek / Claude / GPT / GLM / Kimi / Qwen / Gemini / MiMo 等 16 族），最长边界命中匹配
+- 内置知识库（DeepSeek / Claude / GPT / GLM / Kimi / Qwen / Gemini / MiMo 等 16 族，
+  65 条），最长边界命中匹配
 - 未命中时按厂商家族 / 协议推断，置信度三档（高=知识库、中=厂商推断、低=通用）
 - 档位弹窗显示推荐默认档（带置信度圆点）与推荐标记
 
-### 新增：每模型默认档
+### 每模型默认档
 
 - 档位弹窗底部「设为默认档 / 清除默认档」
 - 经宿主回环路由 `POST /api/model-control/defaults` 持久化（宿主侧 sidecar 存储）
 - 存储键 `provider/model`，与收藏同构
 
-### 新增：模型选择（拉取 API 模型 → 勾选加入）
+### 模型选择（拉取 API 模型 → 勾选加入）
 
 这是「哪些模型存在于本软件」的唯一机制，**不是**停用清单：
 
@@ -382,7 +432,67 @@ scripts/test-engines.mjs       建议引擎与分组断言
 scripts/check-client.mjs       浏览器半语法与注册形态
 ```
 
-## 许可
+## 出处与许可
 
-MIT。包含自 dsh-model-picker（MIT，© ttmouse）派生的代码；知识库自
-dsh-better-reasoning-effort（MIT，© HaoyueQin）提取 65 条全量表。
+本插件是**衍生作品**，两份上游都是 MIT，均允许 Fork、修改与再发布。MIT 的义务只有一条：
+**保留版权声明与许可声明**——就是本节存在的原因。
+
+### 使用了什么
+
+| 上游 | 许可 | 本插件用了什么 |
+|---|---|---|
+| [ttmouse/dsh-model-picker](https://github.com/ttmouse/dsh-model-picker) | MIT · © ttmouse | **选择器座位的实现**：双区触发按钮、搜索分面、供应商折叠与徽标、收藏（localStorage）、分组列表与「电梯」滚动联动、键盘光标与 `aria-activedescendant`、上下文胶囊与视觉图标、`factsOf`/`ModelFacts` 信息通道 |
+| [HaoyueQin/dsh-better-reasoning-effort](https://github.com/HaoyueQin/dsh-better-reasoning-effort) | MIT · © HaoyueQin | **65 条思考档位知识库**（经 `scripts/generate-knowledge.mjs` 提取，重排为 `lib/knowledge.js`），以及档位梯形的组织思路 |
+
+**量级说明**（诚实起见）：`lib/client.js` 中约 **37.6%** 的行（898 / 2390）与原
+`dsh-model-picker` 逐行相同，原插件的 39 个函数中 **38 个**在本插件里保留原名。选择器
+那一半基本是人家的作品，不是我重写的。
+
+### 我增加了什么
+
+- **模型管理页**（原插件没有）：渠道列表 → 渠道弹窗 → 模型弹窗的两层结构；内置渠道接管；
+  自建渠道增删改隐藏；**创建向导**（测试连接 → 拉取 → 勾选 → 创建）
+- **模型能力配置**：按模型声明图片输入 / 上下文窗口 / 最大输出
+  （`POST /api/model-control/ability`）
+- **档位建议引擎**：边界感知的最长命中匹配、厂商/协议推断、置信度三档标注
+  （原插件的档位是手选列表，没有建议）
+- **每模型默认档**与宿主侧 sidecar 持久化（`lib/store.js`，原子写 + 损坏降级 + BOM 容错）
+- **档位声明写入**：按 pi-ai 硬规则校验后写入、备份、可精确撤销（`lib/declaration.js`）
+- **厂家分组**（`lib/grouping.js`）与**选择集合并**（`lib/selection.js`）两个纯函数模块
+- **接管开关**：可在插件页内切回官方模型页（`lib/profile-patch.js`，写 profile 层）
+- **17 条宿主路由**全部经 `ctx.effect` 注册，禁用即释放（有防重复注册的回归测试）
+- **完整测试套件**：`scripts/` 下 7 个测试文件 + 2 个静态防线
+
+### 许可
+
+MIT，见 [LICENSE](LICENSE)。本仓库的 `LICENSE` 只覆盖**我自己写的部分**；上游代码的版权
+仍归各自作者，其 MIT 条款继续适用。
+
+需要注意：`ttmouse/dsh-model-picker` 的 `package.json` 声明了 `"license":"MIT"`，但**仓库里
+没有 LICENSE 文件**（作者漏放）。我按它声明的 MIT 处理，并在此处显式署名——如果原作者认为
+不妥，开 issue 告知，我会调整。
+
+## 要求
+
+- DSH NEXT / DeepSeek Harness，Node ≥ 22
+- 客户端半是 web 平台插件（`dsh.client.platform: "web"`）
+
+## 测试
+
+```bash
+node scripts/check-client.mjs       # 客户端解析 + 静态防线（setter / i18n 完整性）
+node scripts/test-host.mjs          # 宿主 17 条路由
+node scripts/test-engines.mjs       # 档位建议引擎与分组
+node scripts/test-store.mjs         # sidecar 读写、降级、BOM 容错
+node scripts/test-selection.mjs     # 选择集合并语义
+node scripts/test-declaration.mjs   # 档位声明校验与写入/撤销计划
+node scripts/test-profile-patch.mjs # profile 补丁编辑规则与结构守卫
+```
+
+## 槽位与注入契约
+
+注入 `conversation.input.model`（由 `@deepseek-ai/dsh-client-ui-conversation` 声明），
+该座位是**单占用**的——这就是上面「与旧插件的冲突」的根因。
+
+客户端半的 inject 集合与上游一致（`slots` / `sessions` / `modelDirectories` / `remote` /
+`remote.session`）；宿主半用 `ctx.effect` 注册路由，禁用时释放，因此不会留下重复路由。
