@@ -17,7 +17,7 @@ dsh plugin --profile <你的 profile 名> add dsh-model-control
 **从 GitHub 安装**（还没发 npm 时用这个）：
 
 ```sh
-dsh plugin --profile web add https://github.com/uio-o/dsh-model-control/archive/refs/tags/v0.2.0.tar.gz
+dsh plugin --profile web add https://github.com/uio-o/dsh-model-control/archive/refs/tags/v0.2.1.tar.gz
 ```
 
 **手工改 profile 的 `package.json`**：
@@ -25,7 +25,7 @@ dsh plugin --profile web add https://github.com/uio-o/dsh-model-control/archive/
 ```json
 {
   "dependencies": {
-    "dsh-model-control": "^0.2.0"
+    "dsh-model-control": "^0.2.1"
   },
   "dsh": {
     "profile": {
